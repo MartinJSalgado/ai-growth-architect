@@ -70,3 +70,34 @@ export interface AnalyticsEventRow {
   event_data?: Record<string, any>;
   created_at?: string;
 }
+
+// GoHighLevel Integration Types
+export interface GHLConnectionRow {
+  id?: string;
+  user_id?: string | null;
+  session_id: string;
+  onboarding_id?: string | null;
+  access_token: string;
+  refresh_token?: string | null;
+  token_expires_at?: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
+  company_id?: string | null;
+  scopes?: string[];
+  is_active: boolean;
+  last_sync_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GHLMetricsCacheRow {
+  id?: string;
+  ghl_connection_id: string;
+  session_id: string;
+  metric_type: 'pipeline' | 'email' | 'contacts' | 'appointments' | 'website';
+  metric_data: Record<string, any>;
+  summary?: Record<string, any>;
+  fetched_at?: string;
+  valid_until?: string | null;
+  created_at?: string;
+}

@@ -5,6 +5,8 @@ import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
 import AIInsights from "@/components/AIInsights";
+import GHLConnection from "@/components/GHLConnection";
+import GHLMetricsDashboard from "@/components/GHLMetricsDashboard";
 import OnboardingFlow, { OnboardingData } from "@/components/OnboardingFlow";
 import { supabase, getOrCreateSessionId, type OnboardingDataRow, type GrowthPlanRow, type AnalyticsEventRow } from "@/lib/supabase";
 
@@ -20,10 +22,12 @@ export default function Home() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ghlMetrics, setGhlMetrics] = useState<any>(null);
 
-  // Load onboarding data on mount
+  // Load onboarding data and GHL metrics on mount
   useEffect(() => {
     loadOnboardingData();
+    loadGHLMetrics();
   }, []);
 
   const loadOnboardingData = async () => {
@@ -81,6 +85,22 @@ export default function Home() {
       }
     } else {
       setShowOnboarding(true);
+    }
+  };
+
+  const loadGHLMetrics = async () => {
+    const sessionId = getOrCreateSessionId();
+
+    try {
+      const res = await fetch(`/api/ghl/metrics?session_id=${sessionId}`);
+      const data = await res.json();
+
+      if (data.connected && data.metrics) {
+        setGhlMetrics(data.metrics);
+        console.log("✅ GHL metrics loaded:", data.metrics);
+      }
+    } catch (error) {
+      console.error("Failed to load GHL metrics:", error);
     }
   };
 
@@ -228,7 +248,7 @@ export default function Home() {
 
     const { profile, brand } = data;
 
-    return `
+    let metricsText = `
 Company: ${profile.companyName}
 Target Market: ${profile.whoYouSellTo}
 Channels: ${profile.channels.join(", ")}
@@ -237,8 +257,44 @@ Biggest Challenge: ${profile.biggestChallenge}
 FABRIC Maturity:
 ${Object.entries(brand.fabricMaturity).map(([stage, level]) => `- ${stage}: ${level}/5`).join("\n")}
 
-Brand Personality: ${brand.personality.join(", ")}
-    `.trim();
+Brand Personality: ${brand.personality.join(", ")}`;
+
+    // Add GoHighLevel metrics if available
+    if (ghlMetrics) {
+      metricsText += "\n\nGOHIGHLEVEL REAL-TIME METRICS:";
+
+      if (ghlMetrics.pipeline?.summary) {
+        const p = ghlMetrics.pipeline.summary;
+        metricsText += `\n\nPipeline Data:
+- Total Opportunities: ${p.totalOpportunities || 0}
+- Total Pipeline Value: $${(p.totalValue || 0).toLocaleString()}
+- Average Deal Size: $${Math.round(p.avgValue || 0).toLocaleString()}`;
+      }
+
+      if (ghlMetrics.email?.summary) {
+        const e = ghlMetrics.email.summary;
+        metricsText += `\n\nEmail Campaign Performance:
+- Total Campaigns: ${e.totalCampaigns || 0}
+- Emails Sent: ${(e.totalSent || 0).toLocaleString()}
+- Average Open Rate: ${e.avgOpenRate || 0}%
+- Average Click Rate: ${e.avgClickRate || 0}%`;
+      }
+
+      if (ghlMetrics.contacts?.summary) {
+        const c = ghlMetrics.contacts.summary;
+        metricsText += `\n\nContact Database:
+- Total Contacts: ${(c.totalContacts || 0).toLocaleString()}
+- New Contacts (Last 30 Days): ${(c.recentContacts || 0).toLocaleString()}`;
+      }
+
+      if (ghlMetrics.appointments?.summary) {
+        const a = ghlMetrics.appointments.summary;
+        metricsText += `\n\nAppointments:
+- Total Appointments: ${(a.totalAppointments || 0).toLocaleString()}`;
+      }
+    }
+
+    return metricsText.trim();
   };
 
   const handleSubmit = (e: any) => {
@@ -332,6 +388,8 @@ Brand Personality: ${brand.personality.join(", ")}
 
         {/* RIGHT COLUMN */}
         <div className="space-y-6">
+          <GHLConnection />
+          <GHLMetricsDashboard />
           <QuickActions onActionClick={handleQuickAction} />
           <AIInsights onInsightClick={handleInsightAction} />
         </div>
