@@ -19,17 +19,17 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
 
     // Check for OAuth callback success/error in URL
     const params = new URLSearchParams(window.location.search);
-    const ghlConnected = params.get("ghl_connected");
-    const ghlError = params.get("ghl_error");
+    const crmConnected = params.get("crm_connected");
+    const crmError = params.get("crm_error");
 
-    if (ghlConnected === "true") {
+    if (crmConnected === "true") {
       setConnected(true);
       // Clean up URL
       window.history.replaceState({}, "", window.location.pathname);
       // Trigger initial sync
       handleSync();
-    } else if (ghlError) {
-      alert(`GHL Connection Error: ${ghlError}`);
+    } else if (crmError) {
+      alert(`CRM Connection Error: ${crmError}`);
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -38,7 +38,7 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
     const sessionId = getOrCreateSessionId();
 
     try {
-      const res = await fetch(`/api/ghl/metrics?session_id=${sessionId}`);
+      const res = await fetch(`/api/crm/metrics?session_id=${sessionId}`);
       const data = await res.json();
 
       if (data.connected) {
@@ -51,7 +51,7 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
         onConnectionChange?.(false);
       }
     } catch (error) {
-      console.error("Failed to check GHL connection:", error);
+      console.error("Failed to check CRM connection:", error);
       setConnected(false);
     } finally {
       setLoading(false);
@@ -61,7 +61,7 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
   const handleConnect = () => {
     const sessionId = getOrCreateSessionId();
     // Redirect to OAuth initiation endpoint
-    window.location.href = `/api/ghl/connect?session_id=${sessionId}`;
+    window.location.href = `/api/crm/connect?session_id=${sessionId}`;
   };
 
   const handleSync = async () => {
@@ -69,7 +69,7 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
     const sessionId = getOrCreateSessionId();
 
     try {
-      const res = await fetch("/api/ghl/sync", {
+      const res = await fetch("/api/crm/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId }),
@@ -85,7 +85,7 @@ export default function GHLConnection({ onConnectionChange }: GHLConnectionProps
       }
     } catch (error) {
       console.error("Sync error:", error);
-      alert("Failed to sync GHL metrics");
+      alert("Failed to sync CRM metrics");
     } finally {
       setSyncing(false);
     }

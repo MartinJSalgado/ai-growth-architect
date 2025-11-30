@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🔵 Starting GHL metrics sync for session:", session_id);
+    console.log("🔵 Starting CRM metrics sync for session:", session_id);
 
-    // Get active GHL connection for this session
+    // Get active CRM connection for this session
     const { data: connection, error: connectionError } = await supabase
       .from("ghl_connections")
       .select("*")
@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (connectionError || !connection) {
-      console.error("🔴 No active GHL connection found");
+      console.error("🔴 No active CRM connection found");
       return NextResponse.json(
-        { error: "GHL not connected" },
+        { error: "CRM not connected" },
         { status: 404 }
       );
     }
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("🔴 Sync error:", error);
     return NextResponse.json(
-      { error: "Failed to sync GHL metrics" },
+      { error: "Failed to sync CRM metrics" },
       { status: 500 }
     );
   }

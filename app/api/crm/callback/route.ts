@@ -9,13 +9,13 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state"); // This should be the session_id
   const error = searchParams.get("error");
 
-  console.log("🔵 GHL OAuth callback received", { code: !!code, state, error });
+  console.log("🔵 CRM OAuth callback received", { code: !!code, state, error });
 
   // Handle OAuth error
   if (error) {
     console.error("🔴 OAuth error:", error);
     return NextResponse.redirect(
-      new URL(`/?ghl_error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/?crm_error=${encodeURIComponent(error)}`, request.url)
     );
   }
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   if (!code || !state) {
     console.error("🔴 Missing code or state");
     return NextResponse.redirect(
-      new URL("/?ghl_error=missing_parameters", request.url)
+      new URL("/?crm_error=missing_parameters", request.url)
     );
   }
 
@@ -82,17 +82,17 @@ export async function GET(request: NextRequest) {
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    console.log("✅ GHL connection saved successfully!", savedConnection.id);
+    console.log("✅ CRM connection saved successfully!", savedConnection.id);
 
     // Redirect back to app with success
     return NextResponse.redirect(
-      new URL("/?ghl_connected=true", request.url)
+      new URL("/?crm_connected=true", request.url)
     );
   } catch (error) {
     console.error("🔴 OAuth callback error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.redirect(
-      new URL(`/?ghl_error=${encodeURIComponent(errorMessage)}`, request.url)
+      new URL(`/?crm_error=${encodeURIComponent(errorMessage)}`, request.url)
     );
   }
 }

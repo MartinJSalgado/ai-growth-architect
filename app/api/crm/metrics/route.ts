@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log("🔵 Fetching cached GHL metrics for session:", session_id);
+    console.log("🔵 Fetching cached CRM metrics for session:", session_id);
 
     // Get active connection
     const { data: connection } = await supabase
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (!connection) {
       return NextResponse.json(
-        { connected: false, error: "GHL not connected" },
+        { connected: false, error: "CRM not connected" },
         { status: 404 }
       );
     }
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("🔴 Error fetching metrics:", error);
     return NextResponse.json(
-      { error: "Failed to fetch GHL metrics" },
+      { error: "Failed to fetch CRM metrics" },
       { status: 500 }
     );
   }

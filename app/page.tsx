@@ -92,15 +92,15 @@ export default function Home() {
     const sessionId = getOrCreateSessionId();
 
     try {
-      const res = await fetch(`/api/ghl/metrics?session_id=${sessionId}`);
+      const res = await fetch(`/api/crm/metrics?session_id=${sessionId}`);
       const data = await res.json();
 
       if (data.connected && data.metrics) {
         setGhlMetrics(data.metrics);
-        console.log("✅ GHL metrics loaded:", data.metrics);
+        console.log("✅ CRM metrics loaded:", data.metrics);
       }
     } catch (error) {
-      console.error("Failed to load GHL metrics:", error);
+      console.error("Failed to load CRM metrics:", error);
     }
   };
 

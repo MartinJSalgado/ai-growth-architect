@@ -16,14 +16,14 @@ export async function GET(request: NextRequest) {
     // Generate OAuth authorization URL with session_id as state
     const authUrl = getGHLAuthorizationUrl(sessionId);
 
-    console.log("🔵 Redirecting to GHL OAuth:", { sessionId });
+    console.log("🔵 Redirecting to CRM OAuth:", { sessionId });
 
-    // Redirect to GHL authorization page
+    // Redirect to authorization page
     return NextResponse.redirect(authUrl);
   } catch (error) {
     console.error("🔴 Failed to generate auth URL:", error);
     return NextResponse.json(
-      { error: "Failed to initiate GHL connection" },
+      { error: "Failed to initiate CRM connection" },
       { status: 500 }
     );
   }

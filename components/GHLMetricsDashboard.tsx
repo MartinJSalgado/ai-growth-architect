@@ -48,7 +48,7 @@ export default function GHLMetricsDashboard() {
     const sessionId = getOrCreateSessionId();
 
     try {
-      const res = await fetch(`/api/ghl/metrics?session_id=${sessionId}`);
+      const res = await fetch(`/api/crm/metrics?session_id=${sessionId}`);
       const data = await res.json();
 
       if (data.connected) {
