@@ -5,11 +5,13 @@ import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
 import AIInsights from "@/components/AIInsights";
-import OnboardingFlow, { OnboardingData, BusinessProfile, BrandSettings } from "@/components/OnboardingFlow";
+import OnboardingFlow, { OnboardingData } from "@/components/OnboardingFlow";
+import { supabase, getOrCreateSessionId, type OnboardingDataRow, type GrowthPlanRow, type AnalyticsEventRow } from "@/lib/supabase";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
+  const [onboardingId, setOnboardingId] = useState<string | null>(null);
   const [messages, setMessages] = useState([
     {
       sender: "ai",
@@ -19,28 +21,137 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load onboarding data from localStorage on mount
+  // Load onboarding data on mount
   useEffect(() => {
+    loadOnboardingData();
+  }, []);
+
+  const loadOnboardingData = async () => {
+    const sessionId = getOrCreateSessionId();
+
+    try {
+      // Try to load from Supabase first
+      const { data, error } = await supabase
+        .from("onboarding_data")
+        .select("*")
+        .eq("session_id", sessionId)
+        .eq("completed", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && !error) {
+        // Convert Supabase data to OnboardingData format
+        const onboardingData: OnboardingData = {
+          profile: {
+            companyName: data.company_name,
+            whatYouSell: data.what_you_sell,
+            whoYouSellTo: data.who_you_sell_to,
+            primaryGoal: data.primary_goal,
+            channels: data.channels as any[],
+            biggestChallenge: data.biggest_challenge,
+            history: data.history || undefined,
+          },
+          brand: {
+            personality: data.brand_personality as any[],
+            fabricMaturity: data.fabric_maturity as any,
+            selectedSections: data.selected_sections as any[],
+            layoutPreference: data.layout_preference as any,
+          },
+          plan: null, // Will load separately if needed
+        };
+
+        setOnboardingData(onboardingData);
+        setOnboardingId(data.id);
+        return;
+      }
+    } catch (error) {
+      console.error("Error loading from Supabase:", error);
+    }
+
+    // Fallback to localStorage
     const stored = localStorage.getItem("onboardingData");
     if (stored) {
       try {
         const data = JSON.parse(stored);
         setOnboardingData(data);
       } catch (e) {
-        console.error("Error parsing onboarding data:", e);
+        console.error("Error parsing localStorage data:", e);
         setShowOnboarding(true);
       }
     } else {
       setShowOnboarding(true);
     }
-  }, []);
+  };
 
-  const handleOnboardingComplete = (data: OnboardingData) => {
-    setOnboardingData(data);
+  const handleOnboardingComplete = async (data: OnboardingData) => {
+    const sessionId = getOrCreateSessionId();
+
+    // Save to localStorage immediately
     localStorage.setItem("onboardingData", JSON.stringify(data));
+    setOnboardingData(data);
     setShowOnboarding(false);
 
-    // Send initial welcome message with company context
+    // Save to Supabase in background
+    try {
+      // Save onboarding data
+      const onboardingRow: OnboardingDataRow = {
+        session_id: sessionId,
+        company_name: data.profile.companyName,
+        what_you_sell: data.profile.whatYouSell,
+        who_you_sell_to: data.profile.whoYouSellTo,
+        primary_goal: data.profile.primaryGoal,
+        channels: data.profile.channels,
+        biggest_challenge: data.profile.biggestChallenge,
+        history: data.profile.history || null,
+        brand_personality: data.brand.personality,
+        fabric_maturity: data.brand.fabricMaturity,
+        selected_sections: data.brand.selectedSections,
+        layout_preference: data.brand.layoutPreference,
+        completed: true,
+      };
+
+      const { data: savedOnboarding, error: onboardingError } = await supabase
+        .from("onboarding_data")
+        .insert([onboardingRow])
+        .select()
+        .single();
+
+      if (onboardingError) {
+        console.error("Error saving onboarding to Supabase:", onboardingError);
+      } else if (savedOnboarding) {
+        setOnboardingId(savedOnboarding.id);
+
+        // Save growth plan if exists
+        if (data.plan) {
+          const planRow: GrowthPlanRow = {
+            onboarding_id: savedOnboarding.id,
+            session_id: sessionId,
+            summary: data.plan.summary,
+            sections: data.plan.sections as any,
+          };
+
+          const { error: planError } = await supabase
+            .from("growth_plans")
+            .insert([planRow]);
+
+          if (planError) {
+            console.error("Error saving plan to Supabase:", planError);
+          }
+        }
+
+        // Track onboarding completion event
+        trackEvent("onboarding_completed", {
+          company_name: data.profile.companyName,
+          primary_goal: data.profile.primaryGoal,
+          channels: data.profile.channels,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving to Supabase:", error);
+    }
+
+    // Send initial welcome message
     const welcomeMessage = `Welcome to AI Growth Architect, ${data.profile.companyName}! I've reviewed your profile and growth plan. I'm here to help you execute on your ${data.profile.primaryGoal}. What would you like to work on first?`;
 
     setMessages([
@@ -49,6 +160,23 @@ export default function Home() {
         text: welcomeMessage,
       },
     ]);
+  };
+
+  const trackEvent = async (eventType: string, eventData?: Record<string, any>) => {
+    const sessionId = getOrCreateSessionId();
+
+    try {
+      const event: AnalyticsEventRow = {
+        session_id: sessionId,
+        onboarding_id: onboardingId || undefined,
+        event_type: eventType,
+        event_data: eventData,
+      };
+
+      await supabase.from("analytics_events").insert([event]);
+    } catch (error) {
+      console.error("Error tracking event:", error);
+    }
   };
 
   const sendMessage = async (messageText: string, isAutomatic = false) => {
@@ -110,6 +238,8 @@ Brand Personality: ${brand.personality.join(", ")}
   };
 
   const handleQuickAction = (action: string) => {
+    trackEvent("quick_action_clicked", { action });
+
     let prompt = "";
     switch (action) {
       case "Generate Campaign Plan":
@@ -126,6 +256,8 @@ Brand Personality: ${brand.personality.join(", ")}
   };
 
   const handleInsightAction = (insight: string) => {
+    trackEvent("insight_clicked", { insight });
+
     let prompt = "";
     switch (insight) {
       case "Untapped Market Segment":
@@ -159,7 +291,10 @@ Brand Personality: ${brand.personality.join(", ")}
 
         {onboardingData && (
           <button
-            onClick={() => setShowOnboarding(true)}
+            onClick={() => {
+              trackEvent("edit_company_info_clicked");
+              setShowOnboarding(true);
+            }}
             className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
