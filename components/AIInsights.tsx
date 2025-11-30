@@ -1,4 +1,8 @@
-export default function AIInsights() {
+interface AIInsightsProps {
+  onInsightClick: (insight: string) => void;
+}
+
+export default function AIInsights({ onInsightClick }: AIInsightsProps) {
   const insights = [
     {
       title: "Untapped Market Segment",
@@ -42,7 +46,10 @@ export default function AIInsights() {
 
             <p className="text-sm text-slate-600 mb-3">{insight.description}</p>
 
-            <button className="px-4 py-2 bg-violet-100 text-violet-700 text-sm rounded-lg hover:bg-violet-200 transition">
+            <button
+              onClick={() => onInsightClick(insight.title)}
+              className="px-4 py-2 bg-violet-100 text-violet-700 text-sm rounded-lg hover:bg-violet-200 transition"
+            >
               {insight.button}
             </button>
           </div>

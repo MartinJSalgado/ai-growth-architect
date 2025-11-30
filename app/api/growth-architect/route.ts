@@ -32,32 +32,32 @@ Always:
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { companyDescription, goal, metrics } = body;
+    const { companyDescription, goal, metrics, userMessage } = body;
 
-    const userPrompt = `
-User company description:
-${companyDescription || "(not provided)"}
+    // Build context-aware prompt
+    const contextPrompt = `
+COMPANY CONTEXT:
+${companyDescription || "Not provided"}
 
-Campaign / metrics context:
-${metrics || "(not provided)"}
+CURRENT METRICS:
+${metrics || "No metrics provided yet"}
 
-Goal:
-${goal || "(not provided)"}
+GOALS:
+${goal || "Not specified"}
 
-Task:
-1. Give a concise diagnosis of performance.
-2. Identify the 3 biggest growth constraints.
-3. Recommend 3–5 specific experiments for the next 30 days.
-4. Draft example assets (subject lines, hooks, or short copy) where helpful.
+---
 
-Format the response with clear markdown headings and bullet points.
+USER REQUEST: ${userMessage || "Provide an initial analysis of my GTM system"}
+
+Respond directly to the user's request while keeping their company context, metrics, and goals in mind.
+Format your response with clear headings and actionable bullet points where appropriate.
 `;
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o", // Using GPT-4o as a reliable model
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
+        { role: "user", content: contextPrompt },
       ],
     });
 
