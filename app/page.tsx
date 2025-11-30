@@ -5,17 +5,11 @@ import ChatWindow from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
 import AIInsights from "@/components/AIInsights";
-import OnboardingModal from "@/components/OnboardingModal";
-
-interface CompanyData {
-  companyDescription: string;
-  metrics: string;
-  goals: string;
-}
+import OnboardingFlow, { OnboardingData, BusinessProfile, BrandSettings } from "@/components/OnboardingFlow";
 
 export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [messages, setMessages] = useState([
     {
       sender: "ai",
@@ -25,26 +19,36 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load company data from localStorage on mount
+  // Load onboarding data from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("companyData");
+    const stored = localStorage.getItem("onboardingData");
     if (stored) {
-      setCompanyData(JSON.parse(stored));
+      try {
+        const data = JSON.parse(stored);
+        setOnboardingData(data);
+      } catch (e) {
+        console.error("Error parsing onboarding data:", e);
+        setShowOnboarding(true);
+      }
     } else {
       setShowOnboarding(true);
     }
   }, []);
 
-  const handleOnboardingComplete = (data: CompanyData) => {
-    setCompanyData(data);
-    localStorage.setItem("companyData", JSON.stringify(data));
+  const handleOnboardingComplete = (data: OnboardingData) => {
+    setOnboardingData(data);
+    localStorage.setItem("onboardingData", JSON.stringify(data));
     setShowOnboarding(false);
 
-    // Send initial analysis message
-    sendMessage(
-      "Based on my company info and metrics, give me a brief diagnosis and identify my top 3 growth opportunities.",
-      true
-    );
+    // Send initial welcome message with company context
+    const welcomeMessage = `Welcome to AI Growth Architect, ${data.profile.companyName}! I've reviewed your profile and growth plan. I'm here to help you execute on your ${data.profile.primaryGoal}. What would you like to work on first?`;
+
+    setMessages([
+      {
+        sender: "ai",
+        text: welcomeMessage,
+      },
+    ]);
   };
 
   const sendMessage = async (messageText: string, isAutomatic = false) => {
@@ -60,9 +64,9 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyDescription: companyData?.companyDescription || "",
-          goal: companyData?.goals || "",
-          metrics: companyData?.metrics || "",
+          companyDescription: onboardingData?.profile.whatYouSell || "",
+          goal: onboardingData?.profile.primaryGoal || "",
+          metrics: formatMetricsForAPI(onboardingData),
           userMessage: messageText,
         }),
       });
@@ -79,6 +83,24 @@ export default function Home() {
     }
   };
 
+  const formatMetricsForAPI = (data: OnboardingData | null): string => {
+    if (!data) return "";
+
+    const { profile, brand } = data;
+
+    return `
+Company: ${profile.companyName}
+Target Market: ${profile.whoYouSellTo}
+Channels: ${profile.channels.join(", ")}
+Biggest Challenge: ${profile.biggestChallenge}
+
+FABRIC Maturity:
+${Object.entries(brand.fabricMaturity).map(([stage, level]) => `- ${stage}: ${level}/5`).join("\n")}
+
+Brand Personality: ${brand.personality.join(", ")}
+    `.trim();
+  };
+
   const handleSubmit = (e: any) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -91,7 +113,7 @@ export default function Home() {
     let prompt = "";
     switch (action) {
       case "Generate Campaign Plan":
-        prompt = "Create a detailed campaign plan for my company based on my current metrics and goals.";
+        prompt = "Create a detailed campaign plan for my company based on my current profile and goals.";
         break;
       case "Get Growth Ideas":
         prompt = "Give me 5 high-impact growth ideas I can implement in the next 30 days.";
@@ -119,15 +141,12 @@ export default function Home() {
     sendMessage(prompt);
   };
 
+  if (showOnboarding) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
   return (
     <main className="min-h-screen p-8">
-      {showOnboarding && (
-        <OnboardingModal
-          onComplete={handleOnboardingComplete}
-          initialData={companyData || undefined}
-        />
-      )}
-
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-slate-800 mb-2">
@@ -138,7 +157,7 @@ export default function Home() {
           </p>
         </div>
 
-        {companyData && (
+        {onboardingData && (
           <button
             onClick={() => setShowOnboarding(true)}
             className="px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition flex items-center gap-2"
