@@ -93,6 +93,7 @@ export default function Home() {
     setShowOnboarding(false);
 
     // Save to Supabase in background
+    console.log("🔵 Starting Supabase save...", { sessionId });
     try {
       // Save onboarding data
       const onboardingRow: OnboardingDataRow = {
@@ -111,6 +112,8 @@ export default function Home() {
         completed: true,
       };
 
+      console.log("🔵 Attempting to insert:", onboardingRow);
+
       const { data: savedOnboarding, error: onboardingError } = await supabase
         .from("onboarding_data")
         .insert([onboardingRow])
@@ -118,8 +121,10 @@ export default function Home() {
         .single();
 
       if (onboardingError) {
-        console.error("Error saving onboarding to Supabase:", onboardingError);
+        console.error("🔴 Error saving onboarding to Supabase:", onboardingError);
+        console.error("🔴 Error details:", JSON.stringify(onboardingError, null, 2));
       } else if (savedOnboarding) {
+        console.log("✅ Successfully saved to Supabase!", savedOnboarding);
         setOnboardingId(savedOnboarding.id);
 
         // Save growth plan if exists
@@ -173,9 +178,16 @@ export default function Home() {
         event_data: eventData,
       };
 
-      await supabase.from("analytics_events").insert([event]);
+      console.log("🔵 Tracking event:", eventType, eventData);
+      const { error } = await supabase.from("analytics_events").insert([event]);
+
+      if (error) {
+        console.error("🔴 Error tracking event:", error);
+      } else {
+        console.log("✅ Event tracked successfully:", eventType);
+      }
     } catch (error) {
-      console.error("Error tracking event:", error);
+      console.error("🔴 Error tracking event:", error);
     }
   };
 
