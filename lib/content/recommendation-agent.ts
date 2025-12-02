@@ -367,7 +367,7 @@ export interface ContentIdea {
 }
 
 export function parseContentIdeas(text: string): { ideas: ContentIdea[]; cleanText: string } {
-  const regex = /\[CONTENT_IDEA\](.*?)\[\/CONTENT_IDEA\]/gs;
+  const regex = /\[CONTENT_IDEA\]([\s\S]*?)\[\/CONTENT_IDEA\]/g;
   const ideas: ContentIdea[] = [];
   let match;
 
