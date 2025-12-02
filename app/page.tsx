@@ -147,6 +147,37 @@ export default function Home() {
         console.log("✅ Successfully saved to Supabase!", savedOnboarding);
         setOnboardingId(savedOnboarding.id);
 
+        // Create company record for Content OS
+        console.log("🏢 Creating company record for Content OS...");
+        const { data: existingCompany } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("session_id", sessionId)
+          .limit(1)
+          .single();
+
+        if (!existingCompany) {
+          const { data: newCompany, error: companyError } = await supabase
+            .from("companies")
+            .insert({
+              session_id: sessionId,
+              name: data.profile.companyName,
+              description: data.profile.whatYouSell,
+              target_audience: data.profile.whoYouSellTo,
+              primary_goal: data.profile.primaryGoal,
+            })
+            .select()
+            .single();
+
+          if (companyError) {
+            console.error("🔴 Error creating company:", companyError);
+          } else {
+            console.log("✅ Company created for Content OS:", newCompany.name);
+          }
+        } else {
+          console.log("✅ Company already exists:", existingCompany.name);
+        }
+
         // Save growth plan if exists
         if (data.plan) {
           const planRow: GrowthPlanRow = {

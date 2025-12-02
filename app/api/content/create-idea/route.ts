@@ -22,11 +22,51 @@ export async function POST(req: NextRequest) {
     let company = companies?.[0];
 
     if (!company) {
-      console.log('⚠️ No company found, need to complete onboarding first');
-      return NextResponse.json(
-        { error: 'Please complete onboarding first to create content ideas' },
-        { status: 400 }
-      );
+      console.log('⚠️ No company found, attempting to create from onboarding data...');
+
+      // Try to get onboarding data
+      const { data: onboardingData } = await supabase
+        .from('onboarding_data')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('completed', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (onboardingData) {
+        console.log('✅ Found onboarding data, creating company...');
+
+        // Create company from onboarding data
+        const { data: newCompany, error: companyError } = await supabase
+          .from('companies')
+          .insert({
+            session_id: sessionId,
+            name: onboardingData.company_name,
+            description: onboardingData.what_you_sell,
+            target_audience: onboardingData.who_you_sell_to,
+            primary_goal: onboardingData.primary_goal,
+          })
+          .select()
+          .single();
+
+        if (companyError) {
+          console.error('🔴 Error creating company:', companyError);
+          return NextResponse.json(
+            { error: 'Failed to create company record. Please try again.' },
+            { status: 500 }
+          );
+        }
+
+        company = newCompany;
+        console.log('✅ Company created:', company.name);
+      } else {
+        console.log('⚠️ No onboarding data found');
+        return NextResponse.json(
+          { error: 'Please complete onboarding first to create content ideas' },
+          { status: 400 }
+        );
+      }
     }
 
     console.log('✅ Found company:', company.name);
