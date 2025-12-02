@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import {
+  buildRecommendationPrompt,
+  onboardingToContext,
+  type CompanyContext,
+} from "@/lib/content/recommendation-agent";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -32,10 +37,24 @@ Always:
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { companyDescription, goal, metrics, userMessage } = body;
+    const {
+      companyDescription,
+      goal,
+      metrics,
+      userMessage,
+      onboardingData, // NEW: Full onboarding data for context
+      ghlMetrics, // NEW: GoHighLevel metrics
+    } = body;
 
-    // Build context-aware prompt
-    const contextPrompt = `
+    let prompt: string;
+
+    // Use new context-aware recommendation engine if we have full onboarding data
+    if (onboardingData) {
+      const context = onboardingToContext(onboardingData, ghlMetrics);
+      prompt = buildRecommendationPrompt(context, userMessage);
+    } else {
+      // Fallback to original simple prompt for backward compatibility
+      prompt = `
 COMPANY CONTEXT:
 ${companyDescription || "Not provided"}
 
@@ -52,13 +71,15 @@ USER REQUEST: ${userMessage || "Provide an initial analysis of my GTM system"}
 Respond directly to the user's request while keeping their company context, metrics, and goals in mind.
 Format your response with clear headings and actionable bullet points where appropriate.
 `;
+    }
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o", // Using GPT-4o as a reliable model
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: contextPrompt },
+        { role: "user", content: prompt },
       ],
+      temperature: 0.8, // Slightly higher for creative content recommendations
     });
 
     const answer = completion.choices[0].message.content;
