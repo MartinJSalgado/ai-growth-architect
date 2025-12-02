@@ -6,7 +6,7 @@ interface Message {
 }
 
 interface MessageBubbleProps {
-  message: Message;
+  message?: Message;
   sender?: string;
   children?: React.ReactNode;
 }
